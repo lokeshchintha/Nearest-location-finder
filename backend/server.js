@@ -1,7 +1,6 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import fetch from 'node-fetch';
 
 dotenv.config();
 const app = express();
@@ -30,7 +29,10 @@ app.post('/api/nearby-places', async (req, res) => {
   const { location, placeTypes } = req.body;
   const allPlaces = [];
 
-  console.log(placeTypes)
+  if (!location || !placeTypes || !Array.isArray(placeTypes)) {
+    return res.status(400).json({ error: 'Missing or invalid input data' });
+  }
+
   try {
     for (const type of placeTypes) {
       const response = await fetch('https://google-map-places-new-v2.p.rapidapi.com/v1/places:searchNearby', {
@@ -70,7 +72,7 @@ app.post('/api/nearby-places', async (req, res) => {
       if (placesArray.length) {
         const typedResults = placesArray.map((place, index) => {
           const rawCategory = place.primaryType || (place.types && place.types[0]) || 'unknown';
-          const normalizedCategory = rawCategory; // Optional: Add a normalization util
+          const normalizedCategory = rawCategory;
 
           const distanceKm = getDistanceFromLatLonInKm(
             location.lat,
@@ -98,7 +100,7 @@ app.post('/api/nearby-places', async (req, res) => {
     }
 
     allPlaces.sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance));
-    res.json(allPlaces);
+    res.status(200).json({ places: allPlaces });
 
   } catch (error) {
     console.error('Backend error:', error.message);
@@ -107,5 +109,5 @@ app.post('/api/nearby-places', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`✅ Server running on port ${PORT}`);
 });
