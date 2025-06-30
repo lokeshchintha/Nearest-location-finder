@@ -109,12 +109,11 @@ function normalizeCategory(type: string): string {
   return "unknown";
 }
 
-  const API_URL = process.env.REACT_APP_BACKEND_URL;
+  const API_URL = import.meta.env.REACT_APP_BACKEND_URL;
 
 
   const fetchNearbyPlaces = async (location) => {
   setLoading(true);
-
   try {
     const response = await fetch(`${API_URL}/api/nearby-places`, {
       method: 'POST',
@@ -122,26 +121,32 @@ function normalizeCategory(type: string): string {
       body: JSON.stringify({ location, placeTypes }),
     });
 
+    const text = await response.text();
+
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`API error: ${response.status} - ${errorText}`);
-      throw new Error(`Server error ${response.status}`);
+      throw new Error(`Server Error ${response.status}: ${text}`);
     }
 
-    const data = await response.json();
-
-    if (!data || !Array.isArray(data.places)) {
-      throw new Error("Invalid data format received from server");
+    if (!text) {
+      throw new Error('Empty response from server');
     }
 
-    setPlaces(data.places);
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      console.error('Could not parse JSON:', text);
+      throw new Error('Invalid JSON received');
+    }
+
+    setPlaces(data);
   } catch (error) {
     console.error('Frontend error:', error.message);
-    setPlaces([]); // Optional: clear previous results on error
   } finally {
     setLoading(false);
   }
 };
+
 
 
 
