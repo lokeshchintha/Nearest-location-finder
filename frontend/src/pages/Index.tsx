@@ -109,12 +109,13 @@ function normalizeCategory(type: string): string {
   return "unknown";
 }
 
+  const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 
   const fetchNearbyPlaces = async (location) => {
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:5000/api/nearby-places', {
+      const response = await fetch(`${API_URL}/api/nearby-places`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ location, placeTypes }),
