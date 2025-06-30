@@ -113,22 +113,36 @@ function normalizeCategory(type: string): string {
 
 
   const fetchNearbyPlaces = async (location) => {
-    setLoading(true);
-    try {
-      const response = await fetch(`${API_URL}/api/nearby-places`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ location, placeTypes }),
-      });
+  setLoading(true);
 
-      const data = await response.json();
-      setPlaces(data);
-    } catch (error) {
-      console.error('Frontend error:', error.message);
-    } finally {
-      setLoading(false);
+  try {
+    const response = await fetch(`${API_URL}/api/nearby-places`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ location, placeTypes }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`API error: ${response.status} - ${errorText}`);
+      throw new Error(`Server error ${response.status}`);
     }
-  };
+
+    const data = await response.json();
+
+    if (!data || !Array.isArray(data.places)) {
+      throw new Error("Invalid data format received from server");
+    }
+
+    setPlaces(data.places);
+  } catch (error) {
+    console.error('Frontend error:', error.message);
+    setPlaces([]); // Optional: clear previous results on error
+  } finally {
+    setLoading(false);
+  }
+};
+
 
 
 
