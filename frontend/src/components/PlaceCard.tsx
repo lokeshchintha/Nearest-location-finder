@@ -97,7 +97,7 @@ export const PlaceCard: React.FC<PlaceCardProps> = ({ place, userLocation }) => 
             </div>
             <div>
               <h4 className="font-bold text-foreground text-lg leading-tight group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
-                {place.text}
+                {place.name}
               </h4>
               <div className="flex items-center space-x-4 mt-2">
                 <span className="text-sm font-bold text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/30 px-3 py-1 rounded-full">
