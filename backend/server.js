@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import fetch from 'node-fetch'; // If using Node 18+, you can remove this
 
 dotenv.config();
 const app = express();
@@ -30,6 +31,11 @@ app.post('/api/nearby-places', async (req, res) => {
 
   if (!location || !placeTypes || !placeTypes.length) {
     return res.status(400).json({ error: 'Missing location or placeTypes' });
+  }
+
+  if (!process.env.MAPS_KEY) {
+    console.error("❌ Missing MAPS_KEY in environment");
+    return res.status(500).json({ error: 'Server misconfiguration: Missing API Key' });
   }
 
   try {
@@ -64,7 +70,7 @@ app.post('/api/nearby-places', async (req, res) => {
 
       if (!response.ok) {
         const errText = await response.text();
-        console.error('RapidAPI error:', errText);
+        console.error(`❌ API Error for type "${type}":`, errText);
         continue;
       }
 
@@ -73,8 +79,6 @@ app.post('/api/nearby-places', async (req, res) => {
 
       const typedResults = placesArray.map((place, index) => {
         const rawCategory = place.primaryType || (place.types && place.types[0]) || 'unknown';
-        const normalizedCategory = rawCategory;
-
         const distanceKm = getDistanceFromLatLonInKm(
           location.lat,
           location.lng,
@@ -85,8 +89,8 @@ app.post('/api/nearby-places', async (req, res) => {
         return {
           id: place.id || `place-${index}`,
           name: place.name || place.displayName?.text || 'Unknown',
-          category: normalizedCategory,
-          categoryName: normalizedCategory.replace('_', ' '),
+          category: rawCategory,
+          categoryName: rawCategory.replace('_', ' '),
           distance: distanceKm,
           rating: place.rating ? place.rating.toFixed(1) : 'N/A',
           address: place.formattedAddress || 'Address not available',
@@ -99,14 +103,15 @@ app.post('/api/nearby-places', async (req, res) => {
       allPlaces.push(...typedResults);
     }
 
+    console.log("✅ Returning places count:", allPlaces.length);
     res.setHeader('Content-Type', 'application/json');
-    return res.status(200).json(allPlaces);
+    return res.status(200).json(allPlaces); // Will return [] if empty
   } catch (error) {
-    console.error('Server error:', error.message);
+    console.error('🔥 Server error:', error.message);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 app.listen(PORT, () => {
-  console.log(`✅ Server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });
