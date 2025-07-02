@@ -74,7 +74,7 @@ app.get('/api/autocomplete', async (req, res) => {
 app.post('/api/nearby-places', async (req, res) => {
   const { location, placeTypes } = req.body;
 
-  if (!location || !placeTypes?.length) {
+  if (!location || !placeTypes) {
     return res.status(400).json({ error: 'Missing location or placeTypes' });
   }
 
@@ -104,7 +104,7 @@ app.post('/api/nearby-places', async (req, res) => {
                 latitude: location.lat,
                 longitude: location.lng,
               },
-              radius: 50000,
+              radius: 5000,
             },
           },
           maxResultCount: 10,
@@ -112,49 +112,27 @@ app.post('/api/nearby-places', async (req, res) => {
         }),
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.warn(`⚠️ Skipping ${type} due to error:`, errorText);
-        continue;
-      }
-
       const data = await response.json();
-      const results = data.places || data.results || [];
+      if (!response.ok || !data.places) continue;
 
-      const typedResults = results
-        .filter(place => place?.location?.latitude && place?.location?.longitude)
-        .map((place, index) => {
-          const distanceKm = getDistanceFromLatLonInKm(
-            location.lat,
-            location.lng,
-            place.location.latitude,
-            place.location.longitude
-          ).toFixed(1);
+      const results = data.places.map((place) => ({
+        id: place.id,
+        name: place.displayName?.text || place.name || 'Unknown',
+        category: place.primaryType,
+        address: place.formattedAddress || '',
+        lat: place.location.latitude,
+        lng: place.location.longitude,
+        rating: place.rating || 'N/A',
+      }));
 
-          const category = place.primaryType || (place.types && place.types[0]) || 'unknown';
-
-          return {
-            id: place.id || `place-${index}`,
-            name: place.name || place.displayName?.text || 'Unknown',
-            category,
-            categoryName: category.replace('_', ' '),
-            distance: distanceKm,
-            rating: place.rating ? place.rating.toFixed(1) : 'N/A',
-            address: place.formattedAddress || 'Address not available',
-            lat: place.location.latitude,
-            lng: place.location.longitude,
-            text: place.displayName?.text || '',
-          };
-        });
-
-      allPlaces.push(...typedResults);
+      allPlaces.push(...results);
     }
 
-    allPlaces.sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance));
-    return res.status(200).json(allPlaces);
-  } catch (error) {
-    console.error('❌ Nearby search error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    allPlaces.sort((a, b) => a.distance - b.distance);
+    res.json(allPlaces);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error fetching nearby places' });
   }
 });
 
