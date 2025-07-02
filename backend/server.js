@@ -35,13 +35,17 @@ app.post('/api/nearby-places', async (req, res) => {
   const { location, placeTypes } = req.body;
 
   if (!location || !placeTypes || !placeTypes.length) {
+    console.log("❌ Missing location or placeTypes");
     return res.status(400).json({ error: 'Missing location or placeTypes' });
   }
 
   try {
+    console.log("📍 Request received for location:", location);
     const allPlaces = [];
 
     for (const type of placeTypes) {
+      console.log("🔍 Searching type:", type);
+
       const response = await fetch('https://google-map-places-new-v2.p.rapidapi.com/v1/places:searchNearby', {
         method: 'POST',
         headers: {
@@ -70,17 +74,16 @@ app.post('/api/nearby-places', async (req, res) => {
 
       if (!response.ok) {
         const errText = await response.text();
-        console.error('RapidAPI error:', errText);
-        continue;
+        console.error('⚠️ RapidAPI error:', errText);
+        continue; // skip this type
       }
 
       const data = await response.json();
+      console.log(`✅ ${type} results:`, data?.places?.length || data?.results?.length || 0);
+
       const placesArray = data.places || data.results || [];
 
       const typedResults = placesArray.map((place, index) => {
-        const rawCategory = place.primaryType || (place.types && place.types[0]) || 'unknown';
-        const normalizedCategory = rawCategory;
-
         const distanceKm = getDistanceFromLatLonInKm(
           location.lat,
           location.lng,
@@ -88,11 +91,13 @@ app.post('/api/nearby-places', async (req, res) => {
           place.location.longitude
         ).toFixed(1);
 
+        const category = place.primaryType || (place.types && place.types[0]) || 'unknown';
+
         return {
           id: place.id || `place-${index}`,
           name: place.name || place.displayName?.text || 'Unknown',
-          category: normalizedCategory,
-          categoryName: normalizedCategory.replace('_', ' '),
+          category,
+          categoryName: category.replace('_', ' '),
           distance: distanceKm,
           rating: place.rating ? place.rating.toFixed(1) : 'N/A',
           address: place.formattedAddress || 'Address not available',
@@ -105,13 +110,14 @@ app.post('/api/nearby-places', async (req, res) => {
       allPlaces.push(...typedResults);
     }
 
-    res.setHeader('Content-Type', 'application/json');
+    console.log("🚀 Sending back", allPlaces.length, "places");
     return res.status(200).json(allPlaces);
   } catch (error) {
-    console.error('Server error:', error.message);
+    console.error('❌ Server error:', error.message);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 app.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);
