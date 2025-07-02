@@ -31,6 +31,39 @@ function deg2rad(deg) {
   return deg * (Math.PI / 180);
 }
 
+app.get('/api/autocomplete', async (req, res) => {
+  const input = req.query.input;
+  const location = req.query.location || '40,-110';  // default if not provided
+  const radius = req.query.radius || '1000';
+
+  if (!input) {
+    return res.status(400).json({ error: 'Missing input query parameter' });
+  }
+
+  const url = `https://google-map-places.p.rapidapi.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(input)}&radius=${radius}&strictbounds=true&location=${encodeURIComponent(location)}&language=en&region=en`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'x-rapidapi-key': process.env.MAPS_KEY,
+        'x-rapidapi-host': 'google-map-places.p.rapidapi.com,
+      },
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      return res.status(response.status).json({ error: text });
+    }
+
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('API request failed:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 app.post('/api/nearby-places', async (req, res) => {
   const { location, placeTypes } = req.body;
 
