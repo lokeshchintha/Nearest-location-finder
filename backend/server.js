@@ -109,8 +109,10 @@ app.post('/api/nearby-places', async (req, res) => {
 
       allPlaces.push(...typedResults);
     }
+    
+    allPlaces.sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance));
 
-    console.log("🚀 Sending back", allPlaces.length, "places");
+    console.log("🚀 Sending back", allPlaces.length, "places (sorted by distance)");
     return res.status(200).json(allPlaces);
   } catch (error) {
     console.error('❌ Server error:', error.message);
