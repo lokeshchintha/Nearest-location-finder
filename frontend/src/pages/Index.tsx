@@ -112,7 +112,7 @@ function normalizeCategory(type: string): string {
   const API_URL = import.meta.env.REACT_APP_BACKEND_URL;
 
 
-  const fetchNearbyPlaces = async (location) => {
+const fetchNearbyPlaces = async (location: { lat: number; lng: number }) => {
   setLoading(true);
   try {
     const response = await fetch(`${API_URL}/api/nearby-places`, {
@@ -121,39 +121,35 @@ function normalizeCategory(type: string): string {
       body: JSON.stringify({ location, placeTypes }),
     });
 
-    const text = await response.text();
-
     if (!response.ok) {
-      console.error(`❌ Server Error ${response.status}:`, text);
-      throw new Error(`Server Error ${response.status}`);
+      const errorText = await response.text();
+      throw new Error(`Server Error ${response.status}: ${errorText}`);
     }
 
-    if (!text || text.trim().length === 0) {
-      console.warn("⚠️ Empty body received from backend.");
-      setPlaces([]);
-      return;
-    }
+    const text = await response.text();
+    if (!text) throw new Error('Empty response from server');
 
     let data;
     try {
       data = JSON.parse(text);
-    } catch (e) {
-      console.error('❌ Invalid JSON received:', text);
-      throw new Error('Could not parse JSON');
+    } catch {
+      console.error('Invalid JSON received:', text);
+      throw new Error('Could not parse server response');
     }
 
     setPlaces(data);
   } catch (error) {
-    console.error('Frontend error:', error.message);
+    console.error('Frontend error:', (error as Error).message);
     toast({
-      title: "Failed to load nearby places",
-      description: error.message || "Something went wrong",
+      title: "Failed to fetch nearby places",
+      description: (error as Error).message,
       variant: "destructive",
     });
   } finally {
     setLoading(false);
   }
 };
+
 
 
 
