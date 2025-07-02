@@ -104,7 +104,7 @@ app.post('/api/nearby-places', async (req, res) => {
                 latitude: location.lat,
                 longitude: location.lng,
               },
-              radius: 5000,
+              radius: 10000,  // 🔼 Increased radius
             },
           },
           maxResultCount: 10,
@@ -115,15 +115,25 @@ app.post('/api/nearby-places', async (req, res) => {
       const data = await response.json();
       if (!response.ok || !data.places) continue;
 
-      const results = data.places.map((place) => ({
-        id: place.id,
-        name: place.displayName?.text || place.name || 'Unknown',
-        category: place.primaryType,
-        address: place.formattedAddress || '',
-        lat: place.location.latitude,
-        lng: place.location.longitude,
-        rating: place.rating || 'N/A',
-      }));
+      const results = data.places.map((place) => {
+        const distance = getDistanceFromLatLonInKm(
+          location.lat,
+          location.lng,
+          place.location.latitude,
+          place.location.longitude
+        );
+
+        return {
+          id: place.id,
+          name: place.displayName?.text || place.name || 'Unknown',
+          category: place.primaryType,
+          address: place.formattedAddress || '',
+          lat: place.location.latitude,
+          lng: place.location.longitude,
+          rating: place.rating || 'N/A',
+          distance: parseFloat(distance.toFixed(2)), // 📏 Added distance in km
+        };
+      });
 
       allPlaces.push(...results);
     }
@@ -135,6 +145,7 @@ app.post('/api/nearby-places', async (req, res) => {
     res.status(500).json({ error: 'Server error fetching nearby places' });
   }
 });
+
 
 app.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);
