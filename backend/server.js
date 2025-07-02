@@ -8,7 +8,7 @@ const PORT = process.env.PORT || 5000;
 
 // ✅ CORS fix for local dev and production frontend
 app.use(cors({
-  origin: ['http://localhost:8080', 'https://nearest-location-finder-1-kcd0.onrender.com'], // replace with actual prod URL if needed
+  origin: ['https://nearest-location-finder-1-kcd0.onrender.com'], // your frontend origin
   methods: ['GET', 'POST'],
   credentials: true,
 }));
