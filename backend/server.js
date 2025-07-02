@@ -47,7 +47,7 @@ app.get('/api/autocomplete', async (req, res) => {
       method: 'GET',
       headers: {
         'x-rapidapi-key': process.env.MAPS_KEY,
-        'x-rapidapi-host': 'google-map-places.p.rapidapi.com,
+        'x-rapidapi-host': 'google-map-places.p.rapidapi.com',
       },
     });
 
