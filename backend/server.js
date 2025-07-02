@@ -104,7 +104,7 @@ app.post('/api/nearby-places', async (req, res) => {
                 latitude: location.lat,
                 longitude: location.lng,
               },
-              radius: 10000,  // 🔼 Increased radius
+              radius: 50000,  
             },
           },
           maxResultCount: 10,
