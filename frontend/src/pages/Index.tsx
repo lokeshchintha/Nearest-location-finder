@@ -109,7 +109,7 @@ function normalizeCategory(type: string): string {
   return "unknown";
 }
 
-  const API_URL = import.meta.env.REACT_APP_BACKEND_URL;
+  const API_URL = import.meta.env.MAP_KEY;
 
 
 const fetchNearbyPlaces = async (location: { lat: number; lng: number }) => {
