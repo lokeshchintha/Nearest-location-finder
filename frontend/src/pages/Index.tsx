@@ -124,28 +124,37 @@ function normalizeCategory(type: string): string {
     const text = await response.text();
 
     if (!response.ok) {
-      throw new Error(`Server Error ${response.status}: ${text}`);
+      console.error(`❌ Server Error ${response.status}:`, text);
+      throw new Error(`Server Error ${response.status}`);
     }
 
-    if (!text) {
-      throw new Error('Empty response from server');
+    if (!text || text.trim().length === 0) {
+      console.warn("⚠️ Empty body received from backend.");
+      setPlaces([]);
+      return;
     }
 
     let data;
     try {
       data = JSON.parse(text);
     } catch (e) {
-      console.error('Could not parse JSON:', text);
-      throw new Error('Invalid JSON received');
+      console.error('❌ Invalid JSON received:', text);
+      throw new Error('Could not parse JSON');
     }
 
     setPlaces(data);
   } catch (error) {
     console.error('Frontend error:', error.message);
+    toast({
+      title: "Failed to load nearby places",
+      description: error.message || "Something went wrong",
+      variant: "destructive",
+    });
   } finally {
     setLoading(false);
   }
 };
+
 
 
 
