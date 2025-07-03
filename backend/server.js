@@ -7,10 +7,9 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// ✅ CORS for dev + production
 app.use(cors({
   origin: [
-    'https://nearest-location-finder-1-kcd0.onrender.com', 
+    'https://nearest-location-finder-1-kcd0.onrender.com',
     'http://localhost:3000'
   ],
   methods: ['GET', 'POST'],
@@ -19,7 +18,7 @@ app.use(cors({
 
 app.use(express.json());
 
-// ✅ Utility Functions
+// Utility Functions
 function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
   const R = 6371;
   const dLat = deg2rad(lat2 - lat1);
@@ -36,10 +35,10 @@ function deg2rad(deg) {
   return deg * (Math.PI / 180);
 }
 
-// ✅ Autocomplete Endpoint
+// Autocomplete Endpoint
 app.get('/api/autocomplete', async (req, res) => {
   const input = req.query.input;
-  const location = req.query.location || '40,-110'; // optional
+  const location = req.query.location || '40,-110';
   const offset = req.query.offset || 3;
 
   if (!input) return res.status(400).json({ error: 'Missing input query parameter' });
@@ -58,8 +57,8 @@ app.get('/api/autocomplete', async (req, res) => {
 
     const data = await response.json();
 
-    if (!response.ok) {
-      console.error('❌ API error:', data);
+    if (!response.ok || data.status !== 'OK') {
+      console.error('❌ Autocomplete API error:', data);
       return res.status(response.status).json({ error: data });
     }
 
@@ -73,9 +72,7 @@ app.get('/api/autocomplete', async (req, res) => {
   }
 });
 
-
-
-// ✅ Nearby Places Endpoint
+// Nearby Places Endpoint
 app.post('/api/nearby-places', async (req, res) => {
   const { location, placeTypes } = req.body;
 
@@ -88,66 +85,75 @@ app.post('/api/nearby-places', async (req, res) => {
   }
 
   try {
-    const response = await fetch('https://google-map-places-new-v2.p.rapidapi.com/v1/places:searchNearby', {
-      method: 'POST',
-      headers: {
-        'x-rapidapi-key': process.env.MAPS_KEY,
-        'x-rapidapi-host': 'google-map-places-new-v2.p.rapidapi.com',
-        'Content-Type': 'application/json',
-        'X-Goog-FieldMask': '*',
-      },
-      body: JSON.stringify({
-        languageCode: 'en',
-        regionCode: 'IN',
-        rankPreference: 0,
-        locationRestriction: {
-          circle: {
-            center: {
-              latitude: location.lat,
-              longitude: location.lng,
-            },
-            radius: 50000,
+    const allResults = [];
+    const seenIds = new Set();
+
+    for (const type of placeTypes) {
+      for (let batch = 0; batch < 2; batch++) {
+        const response = await fetch('https://google-map-places-new-v2.p.rapidapi.com/v1/places:searchNearby', {
+          method: 'POST',
+          headers: {
+            'x-rapidapi-key': process.env.MAPS_KEY,
+            'x-rapidapi-host': 'google-map-places-new-v2.p.rapidapi.com',
+            'Content-Type': 'application/json',
+            'X-Goog-FieldMask': '*',
           },
-        },
-        maxResultCount: 50,
-        includedTypes: placeTypes, // ✅ pass all place types at once
-      }),
-    });
+          body: JSON.stringify({
+            languageCode: 'en',
+            regionCode: 'IN',
+            rankPreference: 0,
+            locationRestriction: {
+              circle: {
+                center: {
+                  latitude: location.lat,
+                  longitude: location.lng,
+                },
+                radius: 50000,
+              },
+            },
+            maxResultCount: 20,
+            includedTypes: [type],
+          }),
+        });
 
-    const data = await response.json();
+        const data = await response.json();
 
-    if (!response.ok || !data.places) {
-      return res.status(500).json({ error: 'Failed to fetch places', details: data });
+        if (!response.ok || !data.places || data.places.length === 0) break;
+
+        const batchResults = data.places.map((place) => {
+          const distance = getDistanceFromLatLonInKm(
+            location.lat,
+            location.lng,
+            place.location.latitude,
+            place.location.longitude
+          );
+
+          return {
+            id: place.id,
+            name: place.displayName?.text || place.name || 'Unknown',
+            category: place.primaryType,
+            address: place.formattedAddress || '',
+            lat: place.location.latitude,
+            lng: place.location.longitude,
+            rating: place.rating || 'N/A',
+            distance: parseFloat(distance.toFixed(2)),
+          };
+        }).filter(p => !seenIds.has(p.id));
+
+        batchResults.forEach(r => seenIds.add(r.id));
+        allResults.push(...batchResults);
+
+        if (data.places.length < 20) break; // no more data available
+      }
     }
 
-    const results = data.places.map((place) => {
-      const distance = getDistanceFromLatLonInKm(
-        location.lat,
-        location.lng,
-        place.location.latitude,
-        place.location.longitude
-      );
-
-      return {
-        id: place.id,
-        name: place.displayName?.text || place.name || 'Unknown',
-        category: place.primaryType,
-        address: place.formattedAddress || '',
-        lat: place.location.latitude,
-        lng: place.location.longitude,
-        rating: place.rating || 'N/A',
-        distance: parseFloat(distance.toFixed(2)),
-      };
-    });
-
-    results.sort((a, b) => a.distance - b.distance);
-    res.json(results);
+    allResults.sort((a, b) => a.distance - b.distance);
+    res.json(allResults);
   } catch (err) {
-    console.error(err);
+    console.error('❌ Server error fetching nearby places:', err);
     res.status(500).json({ error: 'Server error fetching nearby places' });
   }
 });
-
 
 app.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);
