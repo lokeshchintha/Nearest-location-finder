@@ -39,35 +39,40 @@ function deg2rad(deg) {
 // ✅ Autocomplete Endpoint
 app.get('/api/autocomplete', async (req, res) => {
   const input = req.query.input;
+  const location = req.query.location || '40,-110'; // optional
+  const offset = req.query.offset || 3;
 
   if (!input) return res.status(400).json({ error: 'Missing input query parameter' });
   if (!process.env.MAPS_KEY) return res.status(500).json({ error: 'Missing MAPS_KEY in environment' });
 
-  const url = `https://google-maps-api-free.p.rapidapi.com/google-autocomplete?input=${encodeURIComponent(input)}`;
+  const url = `https://google-map-places.p.rapidapi.com/maps/api/place/queryautocomplete/json?input=${encodeURIComponent(input)}&radius=1000&language=en&location=${location}&offset=${offset}`;
 
   try {
     const response = await fetch(url, {
       method: 'GET',
       headers: {
         'x-rapidapi-key': process.env.MAPS_KEY,
-        'x-rapidapi-host': 'google-maps-api-free.p.rapidapi.com'
-      },
+        'x-rapidapi-host': 'google-map-places.p.rapidapi.com',
+      }
     });
 
+    const data = await response.json();
+
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('❌ API returned non-OK:', errorText);
-      return res.status(response.status).json({ error: errorText });
+      console.error('❌ API error:', data);
+      return res.status(response.status).json({ error: data });
     }
 
-    const data = await response.json();
-    console.log("✅ Autocomplete results:", data);
-    res.json(data);
+    res.json({
+      predictions: data.predictions || [],
+      status: data.status
+    });
   } catch (error) {
     console.error('❌ Autocomplete API error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 
 // ✅ Nearby Places Endpoint
