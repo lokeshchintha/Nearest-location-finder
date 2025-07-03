@@ -74,8 +74,8 @@ app.get('/api/autocomplete', async (req, res) => {
 app.post('/api/nearby-places', async (req, res) => {
   const { location, placeTypes } = req.body;
 
-  if (!location || !placeTypes) {
-    return res.status(400).json({ error: 'Missing location or placeTypes' });
+  if (!location || !placeTypes || !Array.isArray(placeTypes)) {
+    return res.status(400).json({ error: 'Missing or invalid location or placeTypes' });
   }
 
   if (!process.env.MAPS_KEY) {
@@ -83,63 +83,60 @@ app.post('/api/nearby-places', async (req, res) => {
   }
 
   try {
-    const allPlaces = [];
-
-    for (const type of placeTypes) {
-      const response = await fetch('https://google-map-places-new-v2.p.rapidapi.com/v1/places:searchNearby', {
-        method: 'POST',
-        headers: {
-          'x-rapidapi-key': process.env.MAPS_KEY,
-          'x-rapidapi-host': 'google-map-places-new-v2.p.rapidapi.com',
-          'Content-Type': 'application/json',
-          'X-Goog-FieldMask': '*',
-        },
-        body: JSON.stringify({
-          languageCode: 'en',
-          regionCode: 'IN',
-          rankPreference: 0,
-          locationRestriction: {
-            circle: {
-              center: {
-                latitude: location.lat,
-                longitude: location.lng,
-              },
-              radius: 50000,  
+    const response = await fetch('https://google-map-places-new-v2.p.rapidapi.com/v1/places:searchNearby', {
+      method: 'POST',
+      headers: {
+        'x-rapidapi-key': process.env.MAPS_KEY,
+        'x-rapidapi-host': 'google-map-places-new-v2.p.rapidapi.com',
+        'Content-Type': 'application/json',
+        'X-Goog-FieldMask': '*',
+      },
+      body: JSON.stringify({
+        languageCode: 'en',
+        regionCode: 'IN',
+        rankPreference: 0,
+        locationRestriction: {
+          circle: {
+            center: {
+              latitude: location.lat,
+              longitude: location.lng,
             },
+            radius: 50000,
           },
-          maxResultCount: 10,
-          includedTypes: [type],
-        }),
-      });
+        },
+        maxResultCount: 50,
+        includedTypes: placeTypes, // ✅ pass all place types at once
+      }),
+    });
 
-      const data = await response.json();
-      if (!response.ok || !data.places) continue;
+    const data = await response.json();
 
-      const results = data.places.map((place) => {
-        const distance = getDistanceFromLatLonInKm(
-          location.lat,
-          location.lng,
-          place.location.latitude,
-          place.location.longitude
-        );
-
-        return {
-          id: place.id,
-          name: place.displayName?.text || place.name || 'Unknown',
-          category: place.primaryType,
-          address: place.formattedAddress || '',
-          lat: place.location.latitude,
-          lng: place.location.longitude,
-          rating: place.rating || 'N/A',
-          distance: parseFloat(distance.toFixed(2)), // 📏 Added distance in km
-        };
-      });
-
-      allPlaces.push(...results);
+    if (!response.ok || !data.places) {
+      return res.status(500).json({ error: 'Failed to fetch places', details: data });
     }
 
-    allPlaces.sort((a, b) => a.distance - b.distance);
-    res.json(allPlaces);
+    const results = data.places.map((place) => {
+      const distance = getDistanceFromLatLonInKm(
+        location.lat,
+        location.lng,
+        place.location.latitude,
+        place.location.longitude
+      );
+
+      return {
+        id: place.id,
+        name: place.displayName?.text || place.name || 'Unknown',
+        category: place.primaryType,
+        address: place.formattedAddress || '',
+        lat: place.location.latitude,
+        lng: place.location.longitude,
+        rating: place.rating || 'N/A',
+        distance: parseFloat(distance.toFixed(2)),
+      };
+    });
+
+    results.sort((a, b) => a.distance - b.distance);
+    res.json(results);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error fetching nearby places' });
