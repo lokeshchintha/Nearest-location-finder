@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 interface LocationInputProps {
-  onLocationSearch: (location: string) => void;
+  onLocationSearch: (location: { lat: number; lng: number }) => void;
   currentLocation: string;
 }
 
@@ -20,10 +20,9 @@ export const LocationInput = ({ onLocationSearch, currentLocation }: LocationInp
   const [showSuggestions, setShowSuggestions] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Your deployed backend URL for autocomplete
   const AUTOCOMPLETE_API = import.meta.env.VITE_BACKEND_URL;
 
-  // Fetch autocomplete suggestions when searchValue changes
+  // Fetch autocomplete suggestions
   useEffect(() => {
     if (searchValue.trim().length < 2) {
       setSuggestions([]);
@@ -37,8 +36,6 @@ export const LocationInput = ({ onLocationSearch, currentLocation }: LocationInp
         const response = await fetch(`${AUTOCOMPLETE_API}/api/autocomplete?input=${encodeURIComponent(searchValue)}`);
         if (!response.ok) throw new Error('Failed to fetch suggestions');
         const data = await response.json();
-
-        // Google Places Autocomplete returns predictions array
         setSuggestions(data.predictions || []);
         setShowSuggestions(true);
       } catch (err) {
@@ -50,29 +47,52 @@ export const LocationInput = ({ onLocationSearch, currentLocation }: LocationInp
       }
     };
 
-    // Debounce the API call by 300ms
     const debounceId = setTimeout(fetchSuggestions, 300);
     return () => clearTimeout(debounceId);
   }, [searchValue]);
 
-  // Handle suggestion click
-  const handleSuggestionClick = (description: string) => {
+  // Geocode address to lat/lng
+  const geocodePlace = async (description: string): Promise<{ lat: number; lng: number } | null> => {
+    try {
+      const response = await fetch(
+        `${AUTOCOMPLETE_API}/api/geocode?address=${encodeURIComponent(description)}`
+      );
+      const data = await response.json();
+      if (data.status === 'OK' && data.results.length > 0) {
+        const { lat, lng } = data.results[0].geometry.location;
+        return { lat, lng };
+      }
+      return null;
+    } catch (error) {
+      console.error('Geocoding error:', error);
+      return null;
+    }
+  };
+
+  // On suggestion click
+  const handleSuggestionClick = async (description: string) => {
     setSearchValue(description);
     setSuggestions([]);
     setShowSuggestions(false);
-    onLocationSearch(description);
+    const coords = await geocodePlace(description);
+    if (coords) {
+      onLocationSearch(coords);
+    }
   };
 
-  // Handle form submit
-  const handleSubmit = (e: React.FormEvent) => {
+  // On form submit
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (searchValue.trim()) {
-      onLocationSearch(searchValue);
+      const coords = await geocodePlace(searchValue.trim());
+      if (coords) {
+        onLocationSearch(coords);
+      }
       setShowSuggestions(false);
     }
   };
 
-  // Close suggestions if clicked outside
+  // Close suggestions on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
@@ -86,7 +106,6 @@ export const LocationInput = ({ onLocationSearch, currentLocation }: LocationInp
   return (
     <div className="mb-12" ref={containerRef}>
       <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-3xl shadow-2xl p-8 border border-white/20 dark:border-gray-700/50 relative overflow-visible">
-        {/* Gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 via-pink-500/5 to-blue-500/5 pointer-events-none rounded-3xl"></div>
 
         <div className="relative z-10">
@@ -119,7 +138,6 @@ export const LocationInput = ({ onLocationSearch, currentLocation }: LocationInp
                 />
               </div>
 
-              {/* Suggestions dropdown */}
               {showSuggestions && suggestions.length > 0 && (
                 <ul className="absolute z-20 left-0 right-0 max-h-64 overflow-auto bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-b-2xl shadow-xl text-left text-sm text-gray-900 dark:text-gray-100 mt-1">
                   {suggestions.map((sugg, idx) => (
