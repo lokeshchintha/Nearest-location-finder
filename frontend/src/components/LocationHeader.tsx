@@ -13,7 +13,7 @@ export const LocationHeader = () => {
       </div>
       
       <h1 className="text-6xl font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 bg-clip-text text-transparent mb-6 drop-shadow-lg">
-        Nearest Station Finder
+        Nearest Location Finder
       </h1>
       
       <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
