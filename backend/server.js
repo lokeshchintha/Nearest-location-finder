@@ -36,27 +36,15 @@ function deg2rad(deg) {
 }
 
 // Autocomplete Endpoint
-// Autocomplete Endpoint - Updated for India
 app.get('/api/autocomplete', async (req, res) => {
   const input = req.query.input;
-  const location = req.query.location || '28.6139,77.2090'; // Default: New Delhi
+  const location = req.query.location || '40,-110';
   const offset = req.query.offset || 3;
 
   if (!input) return res.status(400).json({ error: 'Missing input query parameter' });
   if (!process.env.MAPS_KEY) return res.status(500).json({ error: 'Missing MAPS_KEY in environment' });
 
-  const url = `https://google-map-places.p.rapidapi.com/maps/api/place/autocomplete/json?` +
-    new URLSearchParams({
-      input: input,
-      radius: '1000',
-      strictbounds: 'true',
-      offset: offset,
-      location: location,
-      origin: location,
-      components: 'country:in',
-      language: 'en',
-      region: 'in'
-    });
+  const url = `https://google-map-places.p.rapidapi.com/maps/api/place/queryautocomplete/json?input=${encodeURIComponent(input)}&radius=1000&language=en&location=${location}&offset=${offset}`;
 
   try {
     const response = await fetch(url, {
@@ -83,7 +71,6 @@ app.get('/api/autocomplete', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 
 // Nearby Places Endpoint
 app.post('/api/nearby-places', async (req, res) => {
@@ -171,3 +158,6 @@ app.post('/api/nearby-places', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);
 });
+
+
+update this code
