@@ -176,6 +176,3 @@ app.post('/api/nearby-places', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);
 });
-
-
-update this code
